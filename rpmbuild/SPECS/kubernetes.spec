@@ -43,8 +43,7 @@ export KUBE_GIT_TREE_STATE="clean"
 export KUBE_GIT_COMMIT=%{commit}
 KUBE_GIT_VERSION=1.4.4
 
-
-hack/build-go.sh --use_go_build
+make all
 
 %check
 
