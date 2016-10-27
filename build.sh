@@ -3,6 +3,7 @@
 latest_stable_kubernetes_version=1.4.4
 specfile=kubernetes.spec
 
+git clone https://github.com/kubernetes/kubernetes.git
 cd kubernetes; git checkout master ; git reset --hard ; git pull ;
 
 latest_stable_kubernetes_commit="`git rev-list v${latest_stable_kubernetes_version}  | head -n 1`"
