@@ -5,7 +5,7 @@
 %global project		GoogleCloudPlatform
 %global repo		kubernetes
 %global import_path	%{provider}.%{provider_tld}/%{project}/%{repo}
-%global commit          3b417cc4ccd1b8f38ff9ec96bb50a81ca0ea9d56
+%global commit          5a0a696437ad35c133c0c8493f7e9d22b0f9b81b
 %global shortcommit	%(c=%{commit}; echo ${c:0:7})
 
 #I really need this, otherwise "version_ldflags=$(kube::version_ldflags)"
@@ -14,13 +14,13 @@
 %global _checkshell	/bin/bash
 
 Name:		kubernetes
-Version:        1.4.4
-Release:	git%{shortcommit}%{?dist}
+Version:        1.4.5
+Release:	1%{?dist}
 Summary:	Container cluster management
 License:	ASL 2.0
-URL:		https://github.com/GoogleCloudPlatform/kubernetes
+URL:		https://github.com/kubernetes/kubernetes/
 ExclusiveArch:	x86_64
-Source0:	https://github.com/GoogleCloudPlatform/kubernetes/archive/%{commit}/kubernetes-%{shortcommit}.tar.gz
+Source0:	https://github.com/kubernetes/kubernetes/archive/%{commit}/kubernetes-%{shortcommit}.tar.gz
 
 # cadvisor is integrated into kubelet
 Obsoletes:      cadvisor
@@ -41,7 +41,7 @@ BuildRequires:	rsync
 %build
 export KUBE_GIT_TREE_STATE="clean"
 export KUBE_GIT_COMMIT=%{commit}
-KUBE_GIT_VERSION=1.4.4
+export KUBE_GIT_VERSION=1.4.5
 
 make all
 
@@ -52,7 +52,6 @@ make all
 kube::golang::setup_env
 
 mkdir -p $RPM_BUILD_ROOT/var/run/kubernetes
-
 output_path="${KUBE_OUTPUT_BINPATH}/$(kube::golang::current_platform)"
 
 binaries=(kube-apiserver kube-controller-manager kube-scheduler kube-proxy kubelet kubectl)
@@ -81,7 +80,12 @@ install -d %{buildroot}/var/lib/kubelet
 install -d -m 0755 %{buildroot}%{_tmpfilesdir}
 install -p -m 0644 -t %{buildroot}/%{_tmpfilesdir} contrib/init/systemd/tmpfiles.d/kubernetes.conf
 
-%files
+%package master
+Summary: %{summary} master parts
+%description master
+%{summary} master parts
+
+%files master
 %doc README.md LICENSE CONTRIB.md CONTRIBUTING.md DESIGN.md
 %{_mandir}/man1/*
 %{_bindir}/kube-apiserver
@@ -108,15 +112,59 @@ install -p -m 0644 -t %{buildroot}/%{_tmpfilesdir} contrib/init/systemd/tmpfiles
 %dir /var/run/kubernetes
 %attr(755,kube,kube) /var/run/kubernetes
 
-%pre
+%pre master
 getent group kube >/dev/null || groupadd -r kube
 getent passwd kube >/dev/null || useradd -r -g kube -d / -s /sbin/nologin \
         -c "Kubernetes user" kube
-%post
+%post master
 %systemd_post kube-apiserver kube-scheduler kube-controller-manager kubelet kube-proxy
 
-%preun
+%preun master
 %systemd_preun kube-apiserver kube-scheduler kube-controller-manager kubelet kube-proxy
 
-%postun
+%postun master
+%systemd_postun 
+/master
+
+
+%package node
+Summary: %{summary} node parts
+%description node 
+%{summary} node parts
+
+%files node 
+
+%doc README.md LICENSE CONTRIB.md CONTRIBUTING.md DESIGN.md
+%{_mandir}/man1/*
+%{_bindir}/kubectl
+%{_bindir}/kubelet
+%{_bindir}/kube-proxy
+%{_unitdir}/kubelet.service
+%{_unitdir}/kube-proxy.service
+%dir %{_sysconfdir}/%{name}
+%dir /var/lib/kubelet
+%config(noreplace) %{_sysconfdir}/%{name}/config
+%config(noreplace) %{_sysconfdir}/%{name}/proxy
+%config(noreplace) %{_sysconfdir}/%{name}/kubelet
+%{_tmpfilesdir}/kubernetes.conf
+
+%dir /var/run/kubernetes
+%attr(755,kube,kube) /var/run/kubernetes
+
+%dir /var/run/kubernetes
+%attr(755,kube,kube) /var/run/kubernetes
+
+%pre node
+getent group kube >/dev/null || groupadd -r kube
+getent passwd kube >/dev/null || useradd -r -g kube -d / -s /sbin/nologin \
+        -c "Kubernetes user" kube
+%post node
+%systemd_post kubelet kube-proxy
+
+%preun node
+%systemd_preun kubelet kube-proxy
+
+%postun node
 %systemd_postun
+/node
+
